@@ -16,29 +16,10 @@ import sys
 import os
 import pickle
 
+import common
+
 Window.clearcolor = (1, 1, 1, 1)
-
-SIZE = 1024
-STEP = SIZE // 8
-FLIP_COUNT_MAX = 50
-
-Window.size = (SIZE//2,SIZE//2)
-
-RANKS = [ letter for letter in 'abcdefgh' ]
-FILES = list(range(1,9))
-
-BOARD_FILENAME = 'resources/board-2048.png'
-BOARD_FLIPPED_FILENAME = 'resources/board-flipped=2048.png'
-
-SQUARE_TO_LOCATION = {}
-LOCATION_TO_SQUARE = {}
-
-for x in range(8):
-    for y in range(8):
-        location = (x,y)
-        square = '{}{}'.format(RANKS[x],FILES[y])
-        LOCATION_TO_SQUARE[location] = square
-        SQUARE_TO_LOCATION[square] = location
+Window.size = (common.SIZE//2,common.SIZE//2)
 
 class Scorer(object):
 
@@ -47,7 +28,7 @@ class Scorer(object):
 
         self.stats = {}
         self.noise = .001
-        self.filename = 'data/scores.pkl'
+        self.filename = common.STATS_FILENAME
 
         if not os.path.exists(self.filename):
             self.init_stats()
@@ -55,12 +36,13 @@ class Scorer(object):
             self.load_stats()
 
     def init_stats(self):
+
         self.stats = {}
 
-        for flipped in (True,False):
-            self.stats[flipped] = {}
-            for square in SQUARE_TO_LOCATION:
-                self.stats[flipped][square] = { 'correct': 0, 'attempts': 0 }
+        for side in ('white', 'black'):
+            self.stats[side] = {}
+            for square in common.SQUARE_TO_LOCATION:
+                self.stats[side][square] = { 'correct': 0, 'total': 0 }
 
     def load_stats(self):
         with open(self.filename, 'rb') as fh:
@@ -70,12 +52,12 @@ class Scorer(object):
         with open(self.filename, 'wb') as fh:
             pickle.dump(self.stats, fh)
 
-    def random_square(self, flipped):
+    def random_square(self, side):
 
         scores = []
         total_score = 0
 
-        for square,stats in self.stats[flipped].items():
+        for square,stats in self.stats[side].items():
 
             # potential for more complicated scoring function
             score = stats['correct']
@@ -94,44 +76,39 @@ class Scorer(object):
 
         return scores[0]['square']
 
-    def update_score(self, flipped, square, misses):
-        self.stats[flipped][square]['attempts'] += 1 
+    def update_score(self, side, square, misses):
+        self.stats[side][square]['total'] += 1 
         if misses == 0:
-            self.stats[flipped][square]['correct'] += 1
+            self.stats[side][square]['correct'] += 1
 
-def point_to_square(flipped, x, y):
+def point_to_square(side, x, y):
 
-    x = int(x / STEP)
-    y = int(y / STEP)
+    x = int(x / common.STEP)
+    y = int(y / common.STEP)
 
-    if flipped:
+    if side == 'black':
         x = 7 - x
         y = 7 - y
 
     location = (x,y)
-    square = LOCATION_TO_SQUARE[location] 
+    square = common.LOCATION_TO_SQUARE[location] 
     
     return square
 
 class CoordinatesWidget(AnchorLayout):
     def __init__(self):
-
-        #super().__init__(orientation='horizontal')
         super().__init__(anchor_x='center', anchor_y='center')
 
-        #self.left_pane = AnchorLayout(anchor_x='center', anchor_y='center')
-        #self.right_pane = AnchorLayout(anchor_x='center', anchor_y='center')
+        self.side = random.choice(['white','black'])
+        if self.side == 'white':
+            self.image = Image(source=common.BOARD_WHITE_FILENAME)
+        else:
+            self.image = Image(source=common.BOARD_BLACK_FILENAME)
 
-        #self.add_widget(self.left_pane)
-        #self.add_widget(self.right_pane)
-
-        self.image = Image(source=BOARD_FILENAME)
-        #self.image = Image(source=BOARD_FLIPPED_FILENAME)
         self.add_widget(self.image)
 
-        self.flipped = False
         self.scorer = Scorer()
-        self.square = self.scorer.random_square(self.flipped)
+        self.square = self.scorer.random_square(self.side)
         self.misses = 0
         self.flip_count = 0
 
@@ -140,24 +117,24 @@ class CoordinatesWidget(AnchorLayout):
 
     def on_touch_down(self, touch):
 
-        if touch.pos[0] < SIZE:
+        if touch.pos[0] < common.SIZE:
 
-            location = point_to_square(self.flipped, touch.pos[0], touch.pos[1])
+            location = point_to_square(self.side, touch.pos[0], touch.pos[1])
 
             if location == self.square:
-                self.scorer.update_score(self.flipped, self.square, self.misses)
-                self.square = self.scorer.random_square(self.flipped)
+                self.scorer.update_score(self.side, self.square, self.misses)
+                self.square = self.scorer.random_square(self.side)
                 self.label.text = self.square
                 self.misses = 0
                 self.scorer.save_stats()
                 self.flip_count += 1
 
-                if self.flip_count == FLIP_COUNT_MAX:
-                    self.flipped = not self.flipped
-                    if not self.flipped:
-                        self.image.source = BOARD_FILENAME
+                if self.flip_count == common.FLIP_COUNT_MAX:
+                    self.side = 'white' if self.side == 'black' else 'black'
+                    if self.side == 'white':
+                        self.image.source = common.BOARD_WHITE_FILENAME
                     else:
-                        self.image.source = BOARD_FLIPPED_FILENAME
+                        self.image.source = common.BOARD_BLACK_FILENAME
                     self.flip_count = 0
             else:
                 self.misses += 1
