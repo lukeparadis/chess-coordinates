@@ -2,7 +2,7 @@ import os
 
 SIZE = 1024
 STEP = SIZE // 8
-FLIP_COUNT_MAX = 20
+FLIP_COUNT_MAX = 50
 
 RANKS = [ letter for letter in 'abcdefgh' ]
 FILES = list(range(1,9))
@@ -10,7 +10,6 @@ FILES = list(range(1,9))
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 RESOURCE_DIR = os.path.join(APP_DIR,'resources')
 
-print('resource_dir',RESOURCE_DIR)
 BOARD_WHITE_FILENAME = os.path.join(RESOURCE_DIR, 'board-white-2048.png')
 BOARD_BLACK_FILENAME = os.path.join(RESOURCE_DIR, 'board-black-2048.png')
 
